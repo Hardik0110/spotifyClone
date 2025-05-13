@@ -26,7 +26,7 @@ app.use(cors({
 app.use(express.json());
 
 const client_id = 'f29485f82aba428f9f058c89fa168371';
-const client_secret = '0d2948882d7142469e6d363a34ca01b5'; // Using the same value as client_id for testing
+const client_secret = '0d2948882d7142469e6d363a34ca01b5';
 const redirect_uri = `https://${networkIP}:${port}/callback`;
 
 const generateRandomString = (length) => {
@@ -81,22 +81,33 @@ app.get('/callback', async (req, res) => {
             console.log('Token response:', data);
             
             if (data.access_token) {
-                // Send a page that sets the token in localStorage and dispatches an event
+                // Create a more robust token handling page
                 res.send(`
                     <html>
-                        <body>
-                            <script>
-                                localStorage.setItem('access_token', '${data.access_token}');
-                                // Wait a bit to ensure the token is set
-                                setTimeout(() => {
-                                    window.dispatchEvent(new Event('tokenSet'));
-                                    // Wait a bit more to ensure the event is processed
-                                    setTimeout(() => {
-                                        window.location.href = '${reactAppUrl}';
-                                    }, 100);
-                                }, 100);
-                            </script>
-                        </body>
+                    <head>
+                        <title>Authentication Successful</title>
+                    </head>
+                    <body>
+                        <h2>Authentication successful! Redirecting...</h2>
+                        <script>
+                            // Store all tokens in localStorage
+                            localStorage.setItem('access_token', '${data.access_token}');
+                            localStorage.setItem('refresh_token', '${data.refresh_token || ''}');
+                            localStorage.setItem('token_type', '${data.token_type || 'Bearer'}');
+                            localStorage.setItem('expires_in', '${data.expires_in || 3600}');
+                            
+                            // Create and dispatch a custom event
+                            const event = new CustomEvent('spotify_authenticated', {
+                                detail: {
+                                    accessToken: '${data.access_token}'
+                                }
+                            });
+                            window.dispatchEvent(event);
+                            
+                            // Redirect to the main application
+                            window.location.href = '${reactAppUrl}';
+                        </script>
+                    </body>
                     </html>
                 `);
             } else {
@@ -107,6 +118,40 @@ app.get('/callback', async (req, res) => {
             console.error('Error exchanging code for token:', error);
             res.redirect(`${reactAppUrl}/callback?error=server_error&details=${encodeURIComponent(error.message)}`);
         }
+    }
+});
+
+// Add a token refresh endpoint
+app.post('/refresh_token', async (req, res) => {
+    const refresh_token = req.body.refresh_token;
+    
+    if (!refresh_token) {
+        return res.status(400).json({ error: 'Refresh token is required' });
+    }
+    
+    try {
+        const response = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': 'Basic ' + Buffer.from(client_id + ':' + client_secret).toString('base64')
+            },
+            body: stringify({
+                grant_type: 'refresh_token',
+                refresh_token: refresh_token
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.access_token) {
+            res.json(data);
+        } else {
+            res.status(400).json(data);
+        }
+    } catch (error) {
+        console.error('Error refreshing token:', error);
+        res.status(500).json({ error: 'Failed to refresh token' });
     }
 });
 
@@ -124,4 +169,4 @@ const httpsOptions = {
 https.createServer(httpsOptions, app).listen(port, host, () => {
     console.log(`Server running at https://localhost:${port}`);
     console.log(`Server also accessible via your network IP at https://${networkIP}:${port}`);
-}); 
+});
