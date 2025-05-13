@@ -9,27 +9,46 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Spotify API credentials
-const CLIENT_ID = 'f29485f82aba428f9f058c89fa168371'; // Replace with your actual Spotify Client ID
-const REDIRECT_URI = 'https://localhost:5173/callback'; // Using HTTPS for Spotify auth
+// Server URL
+const SERVER_URL = 'https://192.168.1.19:8888';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [accessToken, setAccessToken] = useState<string | null>(null);
 
     useEffect(() => {
-        // Check for token in localStorage on mount
-        const token = localStorage.getItem('access_token');
-        if (token) {
-            setAccessToken(token);
-            setIsAuthenticated(true);
-        }
+        // Check for token in localStorage on mount and when storage changes
+        const checkAuth = () => {
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                setAccessToken(token);
+                setIsAuthenticated(true);
+            } else {
+                setAccessToken(null);
+                setIsAuthenticated(false);
+            }
+        };
+
+        // Initial check
+        checkAuth();
+
+        // Listen for storage changes
+        window.addEventListener('storage', checkAuth);
+
+        // Custom event listener for when token is set by the callback page
+        const handleTokenSet = () => {
+            checkAuth();
+        };
+        window.addEventListener('tokenSet', handleTokenSet);
+
+        return () => {
+            window.removeEventListener('storage', checkAuth);
+            window.removeEventListener('tokenSet', handleTokenSet);
+        };
     }, []);
 
     const login = () => {
-        const scope = 'streaming user-read-email user-read-private';
-        const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}`;
-        window.location.href = authUrl;
+        window.location.href = `${SERVER_URL}/login`;
     };
 
     const logout = () => {
