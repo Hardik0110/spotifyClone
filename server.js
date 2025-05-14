@@ -25,8 +25,8 @@ app.use(cors({
 // Parse JSON bodies
 app.use(express.json());
 
-const client_id = 'f29485f82aba428f9f058c89fa168371';
-const client_secret = '0d2948882d7142469e6d363a34ca01b5';
+const client_id = 'ca50e125754941bc9ab75b05f99e8848';
+const client_secret = '6da107751d0e4c7985ecb97e10994116';
 const redirect_uri = `https://${networkIP}:${port}/callback`;
 
 const generateRandomString = (length) => {

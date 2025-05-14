@@ -10,7 +10,7 @@ function Callback() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Parse error parameters from URL if they exist
+
         const params = new URLSearchParams(window.location.search);
         const errorParam = params.get('error');
         const details = params.get('details');
@@ -31,7 +31,6 @@ function Callback() {
             return;
         }
 
-        // If we have access token in localStorage, we're authenticated
         const checkAuth = () => {
             const token = localStorage.getItem('access_token');
             
